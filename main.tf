@@ -10,7 +10,7 @@ terraform {
   required_providers {
     aws = {
       source  = "hashicorp/aws"
-      version = "3.25.0"
+      version = "3.16.0"
     }
   }
 }
@@ -49,7 +49,8 @@ module "vpc" {
 }
 
 module "db_computed_source_sg" {
-  vpc_id = "${local.vpc_id}"
+  source = "terraform-aws-modules/security-group/aws"
+  vpc_id = local.vpc_id
 
   computed_ingress_with_source_security_group_id = [
     {
@@ -79,7 +80,7 @@ module "ecs_security_group" {
 
 module "lb_security_group" {
   source  = "terraform-aws-modules/security-group/aws//modules/web"
-  version = "3.12.0"
+  version = "3.17"
 
   name = "load-balancer-sg-${var.project_name}-${var.environment}"
 
