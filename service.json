@@ -1,0 +1,37 @@
+[
+  {
+    "image": "sss:latest",
+    "name": "svc-container",
+    "logConfiguration": {
+                "logDriver": "awslogs",
+                "options": {
+                    "awslogs-region" : "us-east-1",
+                    "awslogs-group" : "stream-to-log-fluentd",
+                    "awslogs-stream-prefix" : "svc"
+                }
+            },
+    "environment": [
+            {"name": "MYSQL_HOSTNAME", "value": "${aws_db_instance.database.address}"}
+        ],
+    "secrets": [{
+        "name": "MYSQL_USER_NAME",
+        "valueFrom": "${aws_secretsmanager_secret.secret_rds.arn}:uname::"
+    },
+    {
+        "name": "MYSQL_USER_PASSWORD",
+        "valueFrom": "${aws_secretsmanager_secret.secret_rds.arn}:upass::"
+    }
+    ],           
+    "environment": [
+            {
+                "name": "pingInterval",
+                "value": "${var.ping_interval}"
+            },
+            {
+                "name": "dbHost",
+                "value": "${var.db_host}"
+            }
+        ]
+    }
+  
+]
