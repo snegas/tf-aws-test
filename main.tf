@@ -16,7 +16,6 @@ provider "aws" {
 
 data "aws_availability_zones" "available" {
   state = "available"
-  #filter by region?
 }
 
 ########################################################################
@@ -38,7 +37,6 @@ module "vpc" {
   enable_nat_gateway = true
   enable_vpn_gateway = false
 
- # allowed_ports                       = ["8080", "3306", "443", "80"]
   create_database_subnet_group = false
   tags = var.vpc_tags
 }
@@ -48,6 +46,7 @@ module "db_computed_source_sg" {
   vpc_id = local.vpc_id
 
   name = "db-restricted-sg-${var.project_name}"
+
   computed_ingress_with_source_security_group_id = [
     {
       rule                     = "mysql-tcp"
@@ -55,6 +54,10 @@ module "db_computed_source_sg" {
     }
   ]
   number_of_computed_ingress_with_source_security_group_id = 1
+  
+  depends_on = [
+    module.ecs_security_group,
+  ]
 }
 
 module "ecs_security_group" {
@@ -65,12 +68,17 @@ module "ecs_security_group" {
   description = "Security group for ECS task within VPC"
   vpc_id      = local.vpc_id
 
-  egress_cidr_blocks = module.vpc.private_subnets_cidr_blocks
-  egress_with_cidr_blocks = [
+  egress_cidr_blocks = module.vpc.database_subnets_cidr_blocks
+  computed_egress_with_cidr_blocks = [
     {
       rule        = "mysql-tcp"
-      cidr_blocks = "0.0.0.0/0"
-    },
+      cidr_blocks = module.vpc.database_subnets_cidr_blocks[0]
+    }
+  ]
+  number_of_computed_egress_with_cidr_blocks = 1
+
+  depends_on = [
+    module.vpc,
   ]
 }
 
@@ -84,15 +92,11 @@ module "lb_security_group" {
   vpc_id      = local.vpc_id
 
   ingress_cidr_blocks = ["0.0.0.0/0"]
+  auto_ingress_rules = ["http-80-tcp"]
   
-  egress_cidr_blocks = module.vpc.private_subnets_cidr_blocks
-  egress_with_cidr_blocks = [
-    {
-      rule        = "mysql-tcp"
-      cidr_blocks = "0.0.0.0/0"
-    },
+  depends_on = [
+	module.vpc,
   ]
-
 }
 
 ########################################################################
@@ -135,6 +139,10 @@ module "alb" {
   tags = {
     Environment = "Test"
   }
+  
+  depends_on = [
+    module.vpc,
+  ]
 }
 
 resource "random_string" "lb_id" {
@@ -149,6 +157,9 @@ resource "random_string" "lb_id" {
 
 resource "aws_ecs_cluster" "ecs-cluster" {
   name = "test-cluster"
+  depends_on = [
+    module.vpc,
+  ]
 }
 
 resource "aws_ecs_task_definition" "test_task" {
@@ -166,14 +177,13 @@ resource "aws_ecs_task_definition" "test_task" {
 # RDS resources 
 ########################################################################
 
-
 data "aws_secretsmanager_secret_version" "sec_rds_v" {
 	secret_id = aws_secretsmanager_secret.secret_rds.id 
 }
 
-resource "aws_db_subnet_group" "private" {
-  subnet_ids = module.vpc.database_subnets
-}
+#resource "aws_db_subnet_group" "private" {
+#  subnet_ids = module.vpc.database_subnets
+#}
 
 resource "aws_db_instance" "database" {
   allocated_storage = 5
@@ -183,10 +193,14 @@ resource "aws_db_instance" "database" {
   username          = local.db_creds.uname
   password          = local.db_creds.upass
 
-  db_subnet_group_name = aws_db_subnet_group.private.name
+ # db_subnet_group_name = aws_db_subnet_group.private.name
   skip_final_snapshot = true
 
   storage_encrypted	= true
+  
+  depends_on = [
+    module.db_computed_source_sg
+  ]
 }
 
 locals {
