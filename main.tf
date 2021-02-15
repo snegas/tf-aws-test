@@ -1,11 +1,5 @@
 terraform {
-  backend "s3" {
-    bucket         = "test-tf"
-    key            = "global/s3/terraform.tfstate"
-    region         = "us-east-1"    
-    dynamodb_table = "terraform-up-and-running-locks"
-    encrypt        = true
-  }
+
   required_version = ">= 0.13.0"
   required_providers {
     aws = {
@@ -17,7 +11,7 @@ terraform {
 
 provider "aws" {
   region  = var.aws_region
-  profile = test1
+  profile = "test1"
 }
 
 data "aws_availability_zones" "available" {
@@ -53,11 +47,11 @@ module "db_computed_source_sg" {
   source = "terraform-aws-modules/security-group/aws"
   vpc_id = local.vpc_id
 
-  name = db-restricted-sg-${var.project_name}
+  name = "db-restricted-sg-${var.project_name}"
   computed_ingress_with_source_security_group_id = [
     {
       rule                     = "mysql-tcp"
-      source_security_group_id = "${module.ecs_security_group.this_security_group_id}"
+      source_security_group_id = module.ecs_security_group.this_security_group_id
     }
   ]
   number_of_computed_ingress_with_source_security_group_id = 1
@@ -87,9 +81,18 @@ module "lb_security_group" {
   name = "load-balancer-sg-${var.project_name}"
 
   description = "Security group for load balancer with HTTP ports open within VPC"
-  vpc_id      = "${local.vpc_id}"
+  vpc_id      = local.vpc_id
 
   ingress_cidr_blocks = ["0.0.0.0/0"]
+  
+  egress_cidr_blocks = module.vpc.private_subnets_cidr_blocks
+  egress_with_cidr_blocks = [
+    {
+      rule        = "mysql-tcp"
+      cidr_blocks = "0.0.0.0/0"
+    },
+  ]
+
 }
 
 ########################################################################
@@ -105,8 +108,8 @@ module "alb" {
   load_balancer_type = "application"
 
   vpc_id             = local.vpc_id
-  security_groups    = ["${module.vpc.security_group_id}", "${module.lb_security_group.this_security_group_id}"]
-  subnets            = ["${module.vpc.vpc-privatesubnet-ids}"]
+  security_groups    = [module.vpc.default_security_group_id, module.lb_security_group.this_security_group_id]
+  subnets            = module.vpc.private_subnets
   
   access_logs = {
     bucket = "my-alb-logs"
@@ -150,8 +153,8 @@ resource "aws_ecs_cluster" "ecs-cluster" {
 
 resource "aws_ecs_task_definition" "test_task" {
   family                   = "test-task-def"
-  task_role_arn            = "${aws_iam_role.ecs_task_role}"
-  execution_role_arn       = "${aws_iam_role.ecs_task_execution_role}"
+  task_role_arn            = aws_iam_role.ecs_task_role.arn
+  execution_role_arn       = aws_iam_role.ecs_task_execution_role.arn
   network_mode             = "awsvpc"
   cpu                      = "256"
   memory                   = "1024"
@@ -163,13 +166,9 @@ resource "aws_ecs_task_definition" "test_task" {
 # RDS resources 
 ########################################################################
 
-#data "aws_secretsmanager_secret" "rdssec" {
-#  name = "secret_rds"
-#}
 
 data "aws_secretsmanager_secret_version" "sec_rds_v" {
-# secret_id = data.aws_secretsmanager_secret.rdssec.id 
-  secret_id = "secret_rds_ver"
+	secret_id = aws_secretsmanager_secret.secret_rds.id 
 }
 
 resource "aws_db_subnet_group" "private" {
@@ -194,5 +193,5 @@ locals {
   db_creds 			= jsondecode(
     data.aws_secretsmanager_secret_version.sec_rds_v.secret_string
   )
-  vpc_id 			= local.vpc_id
+  vpc_id 			= module.vpc.vpc_id
 }

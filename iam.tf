@@ -41,7 +41,6 @@ EOF
 resource "aws_iam_role_policy" "ecs_task_in_policy" {
   name = "ecs_ssm_policy"
   role = aws_iam_role.ecs_task_execution_role.id
-  description = "policy to allow access by ECS task to secret from SSM"
   policy = <<EOF
 {
   "Version": "2012-10-17",

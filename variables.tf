@@ -1,5 +1,11 @@
 # Input variable definitions
 
+variable aws_region {
+  description = "AWS region"
+  type        = string
+  default     = "us-east-1"
+}
+
 variable "vpc_name" {
   description = "Name of VPC"
   type        = string
@@ -19,12 +25,6 @@ variable "vpc_tags" {
     Terraform   = "true"
     Environment = "dev"
   }
-}
-
-variable aws_region {
-  description = "AWS region"
-  type        = string
-  default     = "us-east-1"
 }
 
 variable project_name {

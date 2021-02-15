@@ -10,9 +10,6 @@
                     "awslogs-stream-prefix" : "svc"
                 }
             },
-    "environment": [
-            {"name": "MYSQL_HOSTNAME", "value": "${aws_db_instance.database.address}"}
-        ],
     "secrets": [{
         "name": "MYSQL_USER_NAME",
         "valueFrom": "${aws_secretsmanager_secret.secret_rds.arn}:uname::"
@@ -21,17 +18,16 @@
         "name": "MYSQL_USER_PASSWORD",
         "valueFrom": "${aws_secretsmanager_secret.secret_rds.arn}:upass::"
     }
-    ],           
+    ], 
     "environment": [
             {
-                "name": "pingInterval",
+                "name": "PING_INTERVAL",
                 "value": "${var.ping_interval}"
             },
             {
-                "name": "dbHost",
-                "value": "${var.db_host}"
+                "name": "MYSQL_HOSTNAME",
+                "value": "${aws_db_instance.database.address}"
             }
         ]
     }
-  
 ]
