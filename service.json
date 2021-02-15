@@ -1,6 +1,6 @@
 [
   {
-    "image": "sss:latest",
+    "image": "imega/mysql-client",
     "name": "svc-container",
     "logConfiguration": {
                 "logDriver": "awslogs",
@@ -18,7 +18,7 @@
         "name": "MYSQL_USER_PASSWORD",
         "valueFrom": "${aws_secretsmanager_secret.secret_rds.arn}:upass::"
     }
-    ], 
+    ],
     "environment": [
             {
                 "name": "PING_INTERVAL",
@@ -27,7 +27,12 @@
             {
                 "name": "MYSQL_HOSTNAME",
                 "value": "${aws_db_instance.database.address}"
+            },
+            {
+                "name": "MYSQL_CONN",
+                "value": "-u ${MYSQL_USER_NAME} -p${MYSQL_USER_PASSWORD} -h ${MYSQL_HOSTNAME}"
             }
-        ]
+    ],
+    "entrypoint":["mysqladmin","--protocol=TCP","-i", "3600", "-w3", "-s", "${MYSQL_CONN}"] 
     }
 ]

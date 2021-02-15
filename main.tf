@@ -113,7 +113,7 @@ module "alb" {
 
   vpc_id             = local.vpc_id
   security_groups    = [module.vpc.default_security_group_id, module.lb_security_group.this_security_group_id]
-  subnets            = module.vpc.private_subnets
+  subnets            = slice(module.vpc.private_subnets,3,3)
   
   access_logs = {
     bucket = "my-alb-logs"
@@ -172,6 +172,24 @@ resource "aws_ecs_task_definition" "test_task" {
   requires_compatibilities = ["FARGATE"]
   container_definitions    = file("service.json")
 }
+
+
+
+module "ecs-fargate-scheduled-task" {
+  source  = "cn-terraform/ecs-fargate-scheduled-task/aws"
+  version = "1.0.13"
+  
+  ecs_cluster_arn = aws_ecs_cluster.ecs-cluster.arn
+  ecs_execution_task_role_arn =aws_iam_role.ecs_task_execution_role.arn
+  event_rule_description = "Test RDS availability periodically"
+  event_rule_name = "ecs-rds-check"
+  event_rule_schedule_expression = "cron(0 * * * ? *)" 
+  event_target_ecs_target_security_groups = [module.ecs_security_group.this_security_group_id]
+  event_target_ecs_target_subnets = slice(module.vpc.private_subnets,0,1)
+  event_target_ecs_target_task_definition_arn = aws_ecs_task_definition.test_task.arn
+  name_prefix = "pref-"
+}
+
 
 ########################################################################
 # RDS resources 
