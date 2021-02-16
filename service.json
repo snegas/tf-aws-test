@@ -33,6 +33,6 @@
                 "value": "-u ${MYSQL_USER_NAME} -p${MYSQL_USER_PASSWORD} -h ${MYSQL_HOSTNAME}"
             }
     ],
-    "entrypoint":["mysqladmin","--protocol=TCP","-i", "3600", "-w3", "-s", "${MYSQL_CONN}"] 
+    "entrypoint":["mysqladmin","--protocol=TCP","-i","${PING_INTERVAL}","-w3", "-s","${MYSQL_CONN}"] 
     }
 ]
