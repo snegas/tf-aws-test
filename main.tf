@@ -1,5 +1,14 @@
 terraform {
 
+  backend "s3" {
+    bucket         = "test-tf-task-1"
+    key            = "global/s3/terraform.tfstate"
+    region         = "us-east-1"    
+    dynamodb_table = "terraform-up-and-running-locks"
+    profile = "test1"
+    encrypt        = true
+  }
+  
   required_version = ">= 0.13.0"
   required_providers {
     aws = {
