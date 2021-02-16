@@ -5,7 +5,6 @@ terraform {
     key            = "global/s3/terraform.tfstate"
     region         = "us-east-1"    
     dynamodb_table = "terraform-up-and-running-locks"
-    profile = "test1"
     encrypt        = true
   }
   
@@ -20,7 +19,6 @@ terraform {
 
 provider "aws" {
   region  = var.aws_region
-  profile = "test1"
 }
 
 data "aws_availability_zones" "available" {
