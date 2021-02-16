@@ -77,10 +77,12 @@ variable ping_interval {
   default     = 3600
 }
 
-variable test {
-  type = number
+variable lidb {	#db user name (login)
+  type = string
+  sensitive = true
 }
 
-variable test2 {
-  type = number
+variable pwdb { #db user pass
+  type = string
+  sensitive = true
 }

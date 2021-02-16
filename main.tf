@@ -240,5 +240,11 @@ locals {
     data.aws_secretsmanager_secret_version.sec_rds_v.secret_string
   )
 
+  db_map 			=  {
+						uname = var.lidb
+						upass = var.pwdb
+						}
+
+
   vpc_id 			= module.vpc.vpc_id
 }
