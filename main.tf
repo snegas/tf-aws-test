@@ -27,6 +27,10 @@ data "aws_availability_zones" "available" {
   state = "available"
 }
 
+data "aws_secretsmanager_secret_version" "sec_rds_v" {
+	secret_id = aws_secretsmanager_secret.secret_rds.id 
+}
+
 ########################################################################
 # VPC, SG resources 
 ########################################################################
@@ -61,7 +65,7 @@ module "db_computed_source_sg" {
   computed_ingress_with_cidr_blocks = [
     {
       rule        = "mysql-tcp"
-      cidr_blocks = local.app_subnets[0]
+      cidr_blocks = local.db_cidr_block
     }
   ]
   number_of_computed_ingress_with_cidr_blocks = 1
@@ -110,6 +114,14 @@ module "lb_security_group" {
 ########################################################################
 # ALB resources 
 ########################################################################
+resource "aws_s3_bucket" logbucket {
+  bucket = "test-alb-logs-2021-02"  
+  versioning {
+    enabled = true
+  }  
+  acl                            = "log-delivery-write"
+  force_destroy                  = true
+}
 
 module "alb" {
   source  = "terraform-aws-modules/alb/aws"
@@ -123,9 +135,9 @@ module "alb" {
   security_groups    = [module.vpc.default_security_group_id, module.lb_security_group.this_security_group_id]
   subnets            = local.alb_subnets
   
-  access_logs = {
-    bucket = "my-alb-logs"
-  }
+ # access_logs = {
+ #   bucket = "test-alb-logs-2021-02"
+ # }
 
   target_groups = [
     {
@@ -150,6 +162,7 @@ module "alb" {
   
   depends_on = [
     module.vpc,
+    aws_s3_bucket.logbucket,
   ]
 }
 
@@ -161,6 +174,18 @@ resource "random_string" "lb_id" {
 ########################################################################
 # ECS resources 
 ########################################################################
+data "template_file" "task" {
+  template = file("service.json")
+
+  vars = {
+ 	uname = join(":",[local.secret1,"uname","",""])
+	upass = join(":",[local.secret1,"upass","",""])
+	ping_int = var.ping_interval
+	dbhost = aws_db_instance.database.address
+	connstr = "-u /$/{MYSQLUSER/} -p/$/{MYSQLUSERPASSWORD/} -h /$/{MYSQL_HOSTNAME/}"
+  }
+}
+
 
 resource "aws_ecs_cluster" "ecs-cluster" {
   name = "test-cluster"
@@ -177,7 +202,8 @@ resource "aws_ecs_task_definition" "test_task" {
   cpu                      = "256"
   memory                   = "1024"
   requires_compatibilities = ["FARGATE"]
-  container_definitions    = file("service.json")
+  container_definitions    = data.template_file.task.rendered
+
 }
 
 module "ecs-fargate-scheduled-task" {
@@ -201,9 +227,6 @@ module "ecs-fargate-scheduled-task" {
 # RDS resources 
 ########################################################################
 
-data "aws_secretsmanager_secret_version" "sec_rds_v" {
-	secret_id = aws_secretsmanager_secret.secret_rds.id 
-}
 
 resource "aws_db_subnet_group" "private" {
   subnet_ids = module.vpc.database_subnets
@@ -213,7 +236,7 @@ resource "aws_db_instance" "database" {
   allocated_storage = 5
   engine            = "mysql"
   engine_version	= "5.7"
-  instance_class    = "db.t2.micro"
+  instance_class    = "db.t2.small"
   username          = local.db_creds.uname
   password          = local.db_creds.upass
 
@@ -223,6 +246,7 @@ resource "aws_db_instance" "database" {
   storage_encrypted	= true
   
   depends_on = [
+    aws_secretsmanager_secret_version.secret_rds_ver,
     module.db_computed_source_sg
   ]
 }
@@ -234,7 +258,9 @@ resource "aws_db_instance" "database" {
 locals {
   alb_subnets		= slice(module.vpc.private_subnets,3,6)
   app_subnets 		= slice(module.vpc.private_subnets,0,3)
-  db_cidr_block		= replace(module.vpc.database_subnets[0],"/24","/22")
+  alb_sn_cidr		= slice(module.vpc.private_subnets_cidr_blocks,3,6)
+  app_sn_cidr		= slice(module.vpc.private_subnets_cidr_blocks,0,3)
+  db_cidr_block		= join(",",[module.vpc.database_subnets_cidr_blocks[0],module.vpc.database_subnets_cidr_blocks[1],module.vpc.database_subnets_cidr_blocks[2]])
 
   db_creds 			= jsondecode(
     data.aws_secretsmanager_secret_version.sec_rds_v.secret_string
@@ -245,6 +271,7 @@ locals {
 						upass = var.pwdb
 						}
 
+  secret1 = data.aws_secretsmanager_secret_version.sec_rds_v.arn
 
   vpc_id 			= module.vpc.vpc_id
 }

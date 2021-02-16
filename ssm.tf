@@ -7,4 +7,7 @@ resource "aws_secretsmanager_secret" "secret_rds" {
 resource "aws_secretsmanager_secret_version" "secret_rds_ver" {
   secret_id     = aws_secretsmanager_secret.secret_rds.id
   secret_string = jsonencode(local.db_map)
+  depends_on = [
+	aws_secretsmanager_secret.secret_rds
+  ]
 }

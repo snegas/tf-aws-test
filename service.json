@@ -11,28 +11,28 @@
                 }
             },
     "secrets": [{
-        "name": "MYSQL_USER_NAME",
-        "valueFrom": "${aws_secretsmanager_secret.secret_rds.arn}:uname::"
+        "name": "MYSQLUSER",
+        "valueFrom": "${uname}"
     },
     {
-        "name": "MYSQL_USER_PASSWORD",
-        "valueFrom": "${aws_secretsmanager_secret.secret_rds.arn}:upass::"
+        "name": "MYSQLUSERPASSWORD",
+        "valueFrom": "${upass}"
     }
     ],
     "environment": [
             {
                 "name": "PING_INTERVAL",
-                "value": "${var.ping_interval}"
+                "value": "${ping_int}"
             },
             {
                 "name": "MYSQL_HOSTNAME",
-                "value": "${aws_db_instance.database.address}"
+                "value": "${dbhost}"
             },
             {
                 "name": "MYSQL_CONN",
-                "value": "-u ${MYSQL_USER_NAME} -p${MYSQL_USER_PASSWORD} -h ${MYSQL_HOSTNAME}"
+                "value": "${connstr}"
             }
     ],
-    "entrypoint":["mysqladmin","--protocol=TCP","-i","${PING_INTERVAL}","-w3", "-s","${MYSQL_CONN}"] 
+    "entrypoint":["mysqladmin","--protocol=TCP","-i","/$/{PING_INTERVAL/}","-w3","/$/{MYSQL_CONN/}"] 
     }
 ]

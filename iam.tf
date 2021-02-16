@@ -51,7 +51,7 @@ resource "aws_iam_role_policy" "ecs_task_in_policy" {
         "secretsmanager:GetSecretValue"
       ],
       "Resource": [
-        "${aws_secretsmanager_secret.secret_rds.arn}"
+        "${aws_secretsmanager_secret_version.secret_rds_ver.arn}"
       ]
     }
   ]
